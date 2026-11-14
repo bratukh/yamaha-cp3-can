@@ -1,0 +1,31 @@
+name: New signal or correction
+description: A new decode, a better scale, or evidence that something here is wrong.
+labels: [signal]
+body:
+  - type: input
+    id: where
+    attributes:
+      label: CAN ID and bytes or bits
+      placeholder: "0x215 B4 bits 7..6"
+    validations:
+      required: true
+  - type: textarea
+    id: claim
+    attributes:
+      label: What it is
+      description: Meaning, formula, unit, value table.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: How you know
+      description: Which capture, which reference (dash, GPS, a deliberate action), how many events. Say if it is a hypothesis.
+    validations:
+      required: true
+  - type: input
+    id: bike
+    attributes:
+      label: Model, year and market
+    validations:
+      required: true

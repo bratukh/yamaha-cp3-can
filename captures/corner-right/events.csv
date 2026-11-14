@@ -1,0 +1,4 @@
+t_s,event
+7.88,right turn starts: yaw rate (0.4 s mean) passes -8 deg/s
+12.64,peak yaw rate -22.40 deg/s at 46 km/h (0x254 B4:B5 = 27760)
+14.08,right turn ends: yaw rate (0.4 s mean) back below -4 deg/s

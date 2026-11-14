@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Question or idea
+    url: https://github.com/bratukh/yamaha-cp3-can/discussions
+    about: Not sure it is an issue? Ask in Discussions, including "what could I build with this".

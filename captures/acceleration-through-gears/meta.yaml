@@ -1,0 +1,26 @@
+bike: Yamaha Tracer 9, 2022, RN70, EU
+capture_month: 2026-07
+logger: ESP32-S3 TWAI + SN65HVD230, normal mode (the logger ACKs), 500 kbit/s
+duration_s: 29.0
+frames: 31061
+frames_per_id:
+  '0x205': 2900
+  '0x209': 2900
+  '0x215': 2900
+  '0x226': 2900
+  '0x22A': 290
+  '0x22B': 290
+  '0x22E': 290
+  '0x23A': 290
+  '0x23E': 29
+  '0x245': 291
+  '0x250': 2900
+  '0x254': 2900
+  '0x258': 2900
+  '0x25C': 2900
+  '0x260': 2900
+  '0x268': 2900
+  '0x401': 291
+  '0x590': 290
+full_rate: true
+description: A pull from 16 to 151 km/h with upshifts 1-2, 2-3, 3-4, 4-5 and 5-6.

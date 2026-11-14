@@ -1,0 +1,26 @@
+bike: Yamaha Tracer 9, 2022, RN70, EU
+capture_month: 2026-07
+logger: ESP32-S3 TWAI + SN65HVD230, normal mode (the logger ACKs), 500 kbit/s
+duration_s: 46.09
+frames: 15798
+frames_per_id:
+  '0x205': 1449
+  '0x209': 1449
+  '0x215': 1449
+  '0x226': 1442
+  '0x22A': 144
+  '0x22B': 144
+  '0x22E': 144
+  '0x23A': 144
+  '0x23E': 14
+  '0x245': 144
+  '0x250': 1438
+  '0x254': 1438
+  '0x258': 1438
+  '0x25C': 1438
+  '0x260': 1459
+  '0x268': 1459
+  '0x401': 461
+  '0x590': 144
+full_rate: true
+description: Engine idles, is switched off, the bus goes quiet and 0x401 = 0x80 is the only frame left for about 31 s.

@@ -1,0 +1,17 @@
+name: Problem with the docs, DBC or decoder
+description: Something is unclear, wrong, or does not work as described.
+labels: [docs]
+body:
+  - type: input
+    id: where
+    attributes:
+      label: Where
+      placeholder: "docs/connecting.md, the DBC in SavvyCAN, decoder/cp3can.py"
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What is wrong, and what you expected
+    validations:
+      required: true

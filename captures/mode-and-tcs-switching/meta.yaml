@@ -1,0 +1,18 @@
+bike: Yamaha Tracer 9, 2022, RN70, EU
+capture_month: 2026-05
+logger: ESP32-S3 TWAI + SN65HVD230, normal mode (the logger ACKs), 500 kbit/s
+duration_s: 23.97
+frames: 747
+frames_per_id:
+  '0x205': 5
+  '0x209': 46
+  '0x215': 124
+  '0x226': 11
+  '0x23E': 24
+  '0x258': 226
+  '0x25C': 225
+  '0x260': 84
+  '0x268': 2
+full_rate: false
+description: 'Standstill, engine off: the rider steps through the four riding modes twice and then the traction-control levels, engine starts at the end. Decimated log.'
+full_rate_note: 'decimated: the logger stored only frames whose bytes changed (plus a few periodic ones), so this is not a complete 100 Hz record'

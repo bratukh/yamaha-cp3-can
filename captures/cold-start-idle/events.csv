@@ -1,0 +1,17 @@
+t_s,event
+0.04,first 0x23A frame reads B0 = 0x04 (just woken)
+0.22,first 0x226 frame is the power-on placeholder 05 01 00 01 00 25 28
+0.24,0x209 B4 wake pattern 0x48 -> 0x08
+0.59,0x209 B4 wake pattern 0x08 -> 0x00
+1.05,coolant (0x23E B0) 23.75 -> 24.38 degC
+1.95,0x23A B0 returns from 0x04 to 0x00
+15.88,0x209 start flag (B3 bit 0) on
+16.16,engine start: rpm leaves 0
+16.48,rpm first above 1000
+16.69,"0x209 start flag off, engine idling"
+29.05,coolant (0x23E B0) 24.38 -> 25.00 degC
+35.05,coolant (0x23E B0) 25.00 -> 25.62 degC
+38.05,coolant (0x23E B0) 25.62 -> 26.25 degC
+41.05,coolant (0x23E B0) 26.25 -> 26.88 degC
+44.05,coolant (0x23E B0) 26.88 -> 27.50 degC
+46.05,coolant (0x23E B0) 27.50 -> 28.12 degC

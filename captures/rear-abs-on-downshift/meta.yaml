@@ -1,0 +1,26 @@
+bike: Yamaha Tracer 9, 2022, RN70, EU
+capture_month: 2026-07
+logger: ESP32-S3 TWAI + SN65HVD230, normal mode (the logger ACKs), 500 kbit/s
+duration_s: 20.0
+frames: 21420
+frames_per_id:
+  '0x205': 2000
+  '0x209': 2000
+  '0x215': 2000
+  '0x226': 2000
+  '0x22A': 200
+  '0x22B': 200
+  '0x22E': 200
+  '0x23A': 200
+  '0x23E': 20
+  '0x245': 200
+  '0x250': 2000
+  '0x254': 2000
+  '0x258': 2000
+  '0x25C': 2000
+  '0x260': 2000
+  '0x268': 2000
+  '0x401': 200
+  '0x590': 200
+full_rate: true
+description: 'Throttle closed, no brake applied: a 2nd-to-1st downshift at 61 km/h makes the rear wheel slow sharply (up to 16 % below the front for two frames) and sets the rear ABS flag.'

@@ -1,0 +1,5 @@
+t_s,event
+13.65,last frame with rpm above 0 (engine stops)
+14.49,0x401 changes from 0x00 to 0x80
+14.59,last frame of any ID other than 0x401
+46.09,"last frame in capture: 0x401 = 0x80, the only ID still sending"

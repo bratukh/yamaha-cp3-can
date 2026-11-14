@@ -1,0 +1,9 @@
+t_s,event
+2.24,front wheel speed passes 50 km/h
+2.61,upshift 1->2
+6.84,upshift 2->3
+7.42,front wheel speed passes 100 km/h
+8.50,upshift 3->4
+10.45,upshift 4->5
+26.52,upshift 5->6
+27.76,front wheel speed passes 150 km/h

@@ -1,0 +1,6 @@
+t_s,event
+3.18,downshift 3->2
+6.58,downshift 2->1
+6.61,"rear wheel dips below front: -9.9 km/h (front 61.6, rear 51.6)"
+6.62,"rear ABS flag on (0x268 B4 bit 0), front brake pressure 2 raw"
+7.10,rear ABS flag off

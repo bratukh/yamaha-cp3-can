@@ -1,0 +1,12 @@
+t_s,event
+7.56,ride mode D-MODE 4 -> D-MODE 3 (0x226 B0 bits 7..6 3 -> 2)
+8.36,ride mode D-MODE 3 -> D-MODE 2 (0x226 B0 bits 7..6 2 -> 1)
+9.13,ride mode D-MODE 2 -> D-MODE 1 (0x226 B0 bits 7..6 1 -> 0)
+10.01,ride mode D-MODE 1 -> D-MODE 4 (0x226 B0 bits 7..6 0 -> 3)
+11.06,ride mode D-MODE 4 -> D-MODE 3 (0x226 B0 bits 7..6 3 -> 2)
+12.25,ride mode D-MODE 3 -> D-MODE 2 (0x226 B0 bits 7..6 2 -> 1)
+13.38,ride mode D-MODE 2 -> D-MODE 1 (0x226 B0 bits 7..6 1 -> 0)
+15.62,TCS level TCS M -> TCS 2 (0x226 B3 3 -> 2)
+16.60,TCS level TCS 2 -> TCS 1 (0x226 B3 2 -> 1)
+17.95,TCS level TCS 1 -> TCS M (0x226 B3 1 -> 3)
+20.62,engine start: rpm leaves 0 (still at standstill)

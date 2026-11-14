@@ -1,0 +1,7 @@
+t_s,event
+7.04,front brake pressure (0x260 B0:B1) passes 300 raw
+7.58,peak front brake pressure 839 raw
+7.59,"front ABS flag on (0x268 B4 bit 1), pressure 771 raw, front wheel 25.9 km/h"
+8.24,front ABS flag off
+13.55,"front ABS flag on (0x268 B4 bit 1), pressure 394 raw, front wheel 27.6 km/h"
+14.66,front ABS flag off

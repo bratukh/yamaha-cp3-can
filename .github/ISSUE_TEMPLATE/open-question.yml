@@ -1,0 +1,31 @@
+name: Answer to an open question
+description: A capture or an observation that helps with something listed in docs/open-questions.md.
+labels: [open-question]
+body:
+  - type: input
+    id: question
+    attributes:
+      label: Which question
+      placeholder: "What is setting_2bit? / Does a listen-only node see traffic?"
+    validations:
+      required: true
+  - type: textarea
+    id: did
+    attributes:
+      label: What you did
+      description: Step by step, with times if you have a capture ("t = 12 s: switched BC1 to BC2").
+    validations:
+      required: true
+  - type: textarea
+    id: saw
+    attributes:
+      label: What you saw
+      description: Which bytes changed, or what stayed the same. Attach the capture. Remove GPS data and the VIN.
+    validations:
+      required: true
+  - type: input
+    id: bike
+    attributes:
+      label: Model, year and market
+    validations:
+      required: true

@@ -1,0 +1,35 @@
+name: Confirm on my bike
+description: Report whether these frames exist on your motorcycle. A one-minute capture is enough.
+labels: [bike-report]
+body:
+  - type: input
+    id: bike
+    attributes:
+      label: Model, year and market
+      placeholder: "Tracer 9, 2023, EU"
+    validations:
+      required: true
+  - type: input
+    id: equipment
+    attributes:
+      label: Equipment the base bike does not have
+      placeholder: "quickshifter, cruise control, semi-active suspension"
+  - type: input
+    id: logger
+    attributes:
+      label: Logger and mode
+      description: Hardware, and whether it acknowledged frames (normal mode) or only listened.
+    validations:
+      required: true
+  - type: textarea
+    id: result
+    attributes:
+      label: What you saw
+      description: Which IDs are present, which signals decode to sensible values, what differs.
+    validations:
+      required: true
+  - type: textarea
+    id: capture
+    attributes:
+      label: Capture
+      description: Attach a log and note what you did and when. Remove GPS data and the VIN.

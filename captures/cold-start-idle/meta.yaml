@@ -1,0 +1,26 @@
+bike: Yamaha Tracer 9, 2022, RN70, EU
+capture_month: 2026-07
+logger: ESP32-S3 TWAI + SN65HVD230, normal mode (the logger ACKs), 500 kbit/s
+duration_s: 47.0
+frames: 50237
+frames_per_id:
+  '0x205': 4696
+  '0x209': 4696
+  '0x215': 4696
+  '0x226': 4678
+  '0x22A': 470
+  '0x22B': 470
+  '0x22E': 468
+  '0x23A': 470
+  '0x23E': 47
+  '0x245': 470
+  '0x250': 4684
+  '0x254': 4684
+  '0x258': 4684
+  '0x25C': 4684
+  '0x260': 4701
+  '0x268': 4701
+  '0x401': 470
+  '0x590': 468
+full_rate: true
+description: Cold bus wake-up, engine start and the first 30 s of idle; coolant starts at 23.75 degC and rises.
