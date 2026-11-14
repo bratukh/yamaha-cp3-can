@@ -4,7 +4,7 @@ Versions follow semantic versioning for the data: a major version changes an ID,
 a scale of a confirmed signal; a minor version adds signals or promotes a status; a patch fixes
 text. The DBC `VERSION` equals the repository tag.
 
-## 0.1.0 — unreleased
+## 0.1.0 — 2026-11-14
 
 First public version.
 
