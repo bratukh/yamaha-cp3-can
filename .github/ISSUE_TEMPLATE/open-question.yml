@@ -6,7 +6,7 @@ body:
     id: question
     attributes:
       label: Which question
-      placeholder: "What is setting_2bit? / Does a listen-only node see traffic?"
+      placeholder: "Which assist level is SCS? / Does a listen-only node see traffic?"
     validations:
       required: true
   - type: textarea

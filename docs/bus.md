@@ -7,21 +7,21 @@ frames arrive every 10 ms.
 | ID | DLC | Rate | Content | Status |
 |---|---|---|---|---|
 | [0x205](messages/0x205.md) | 8 | 100 Hz | Front and rear wheel speed | confirmed |
-| [0x209](messages/0x209.md) | 6 | 100 Hz | Engine speed, gear, riding mode, TCS level | confirmed |
-| [0x215](messages/0x215.md) | 8 | 100 Hz | Throttle grip and throttle valve | confirmed |
-| [0x226](messages/0x226.md) | 7 | 100 Hz | Riding mode and TCS setting | confirmed |
-| [0x22A](messages/0x22A.md) | 2 | 10 Hz | One bit follows the rear brake pedal | hypothesis |
+| [0x209](messages/0x209.md) | 6 | 100 Hz | Engine speed, gear, riding mode, TCS level in effect | confirmed |
+| [0x215](messages/0x215.md) | 8 | 100 Hz | Throttle grip and throttle valve, copies of rider settings | confirmed |
+| [0x226](messages/0x226.md) | 7 | 100 Hz | Rider settings: mode, TCS mode and level, SCS/LIF, quickshifter, BC | confirmed |
+| [0x22A](messages/0x22A.md) | 2 | 10 Hz | Brake light switch (either brake) | confirmed |
 | [0x22B](messages/0x22B.md) | 2 | 10 Hz | Always zero | unknown |
 | [0x22E](messages/0x22E.md) | 2 | 10 Hz | Always zero | unknown |
 | [0x23A](messages/0x23A.md) | 3 | 10 Hz | A wake-up phase flag | hypothesis |
-| [0x23E](messages/0x23E.md) | 4 | 1 Hz | Coolant temperature, air temperature, a load counter | confirmed |
+| [0x23E](messages/0x23E.md) | 4 | 1 Hz | Coolant and air temperature, a load counter | confirmed |
 | [0x245](messages/0x245.md) | 1 | 10 Hz | Always zero | unknown |
 | [0x250](messages/0x250.md) | 8 | 100 Hz | Accelerometer | confirmed |
 | [0x254](messages/0x254.md) | 8 | 100 Hz | Gyroscope | confirmed |
-| [0x258](messages/0x258.md) | 8 | 100 Hz | IMU, packed fields | hypothesis |
+| [0x258](messages/0x258.md) | 8 | 100 Hz | IMU, packed fields, a second pitch rate | hypothesis |
 | [0x25C](messages/0x25C.md) | 4 | 100 Hz | IMU, not decoded | unknown |
-| [0x260](messages/0x260.md) | 8 | 100 Hz | Front brake pressure | confirmed |
-| [0x268](messages/0x268.md) | 6 | 100 Hz | Speed, ABS flags, rear brake pedal | confirmed |
+| [0x260](messages/0x260.md) | 8 | 100 Hz | Front brake pressure (front circuit only) | confirmed |
+| [0x268](messages/0x268.md) | 6 | 100 Hz | Speed, ABS flags, brake light switch, BC mode | confirmed |
 | [0x401](messages/0x401.md) | 1 | 10 Hz | After-run flag at shutdown | hypothesis |
 | [0x590](messages/0x590.md) | 4 | 10 Hz | Always zero | unknown |
 
@@ -41,20 +41,29 @@ shutdown timing does not fully support it: 0x205 starts and stops together with 
 - **Unassigned:** 0x22A, 0x22B, 0x22E, 0x245, 0x401, 0x590.
 
 The instrument cluster does not appear as a sender we can identify, and it did not answer on
-any standard diagnostic address. The four always-zero frames may belong to equipment this base
-model does not have (heated grips, cruise buttons, semi-active suspension on the GT) or to
-states we never triggered.
+any standard diagnostic address. The four always-zero frames stayed zero in every byte through a
+whole day of riding. They may belong to equipment this base model does not have (heated grips,
+heated seat, semi-active suspension on the GT models) or to states we never triggered.
 
 ## One setting, several copies
 
 The engine ECU repeats the rider's settings in several frames, which makes a useful consistency
-check for a decoder:
+check for a decoder. The TCS mode (what the dash shows) and the TCS level in effect are
+different fields: in the TCS 1 and TCS 2 modes they are equal, in M the level is whatever the
+rider set inside M. Early captures could not tell them apart, because the rider's M setup had
+every level at 3.
 
 | Setting | Copies |
 |---|---|
 | Riding mode | 0x209 B4 bits 7..6, 0x215 B7 bits 7..6, 0x226 B0 bits 7..6 |
-| TCS level | 0x209 B3 bits 4..1, 0x215 B4 bits 1..0, 0x215 B5 bits 1..0, 0x215 B6 bits 2..1, 0x226 B0 (twice), 0x226 B3, 0x226 B5 bits 3..2 |
-| Two-bit setting (brake control mode?) | 0x226 B5 bits 1..0, 0x268 B4 bits 4..3 |
+| TCS mode | 0x226 B3, 0x215 B4 bits 1..0 |
+| TCS level in effect | 0x226 B0 bits 3..2, 0x209 B3 bits 4..1, 0x215 B6 bits 2..1 |
+| SCS or LIF level (which is open) | 0x226 B0 bits 1..0 |
+| The other of SCS and LIF | 0x226 B5 bits 3..2, 0x215 B5 bits 1..0 |
+| Quickshifter UP on | 0x226 B5 bit 5, 0x215 B5 bit 5 |
+| Quickshifter DOWN on | 0x226 B1 bit 0, 0x215 B5 bit 3 |
+| Brake control mode (BC1 / BC2) | 0x226 B5 bits 1..0, 0x268 B4 bits 4..3 |
+| Brake light switch | 0x268 B4 bit 2, 0x22A B1 bit 3 |
 
 ## Power-up
 

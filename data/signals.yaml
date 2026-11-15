@@ -42,7 +42,7 @@ meta:
       engine_ecu_sw: "12165003"
       abs_ecu_sw: "12165180"
       system_name: B5U1
-      captured: "2026-04 to 2026-09"
+      captured: "2026-04 to 2026-11"
 
 messages:
 
@@ -66,14 +66,19 @@ messages:
         confirmed_by: "Phone GPS speed on one ride; the dash speedometer on video on two others"
         description: >-
           Front wheel speed, raw / 101.0 = true km/h. The dash reads about 9 % higher than
-          this, as most speedometers do.
+          this, as most speedometers do. The dash trip meter counts 1.0388 × the distance
+          integrated from this word, so a trip that matches the dash can be computed from the
+          bus.
         evidence: >-
           Compared with phone GPS Doppler speed over one ride: 181 steady pairs from 17 to
           135 km/h give 100.8 raw per km/h, residual sd 0.4 km/h. The ratio falls slightly
           with speed (101.2 at 15-40 km/h, 100.4 above 120 km/h). Two earlier rides compared
           through video of the dash speedometer (linear from 11 to 170 km/h) agree with it.
+          A cold-day ride (6-9 °C) gave raw / 101.0 = 0.997 × GPS again on three recordings
+          (r 0.994-0.998). Trip meter: seven filmed steps of the dash trip over 10.4 km fit
+          1.0388 × the integrated front-wheel distance within ±1.2 m.
         caveats: >-
-          The scale depends on tyre size, wear and pressure. One GPS ride on one set of tyres.
+          The scale depends on tyre size, wear and pressure. GPS rides on one set of tyres.
         example: { frame: "2B 21 2B 78 00 04 00 00", value: 109.3 }
       - name: wheel_speed_rear
         addr: { byte: 2, len: 2, endian: big, signed: false }
@@ -91,16 +96,30 @@ messages:
           Rear/front ratio over 2313 steady windows of one ride; when the rear wheel locks,
           the rear word drops 8-10 km/h below the front within a few frames and recovers.
         example: { frame: "2B 21 2B 78 00 04 00 00", value: 110.2 }
-      - name: accel_state_bits
-        addr: { byte: 5, bit: 0, bit_len: 4 }
+      - name: accel_level
+        addr: { byte: 5, bit: 1, bit_len: 3 }
+        values: { 0: "level 0 (decelerating)", 1: "level 4", 2: "level 2", 3: "level 6", 4: "level 1", 5: "level 5", 6: "level 3", 7: "level 7" }
         status: hypothesis
-        confidence: low
+        confidence: medium
         description: >-
-          Four flag bits in the low nibble of B5 (B4 is always 0). Bit 3 is set in 50-73 % of
-          frames while accelerating, 4-6 % while decelerating, never with the rear brake pedal
-          down, and about 90 % of the time at standstill. Bit 1 goes with hard acceleration,
-          bit 2 with moderate acceleration. Looks like a drive or acceleration state. An
-          earlier reading of bit 3 as "ABS armed" does not fit.
+          A longitudinal acceleration level 0-7 with the bit order reversed: bit 3 is the
+          least significant bit of the level and bit 1 the most significant, so
+          level = bit3 + 2 × bit2 + 4 × bit1 (the value table maps the raw 3-bit field to the
+          level). The level rises steadily with rear-wheel acceleration, about 0.11 g per
+          step; level 0 covers any deceleration. B4 is always 0. Possibly a drive-force class
+          used by the ABS unit for traction or lift control. An earlier reading of bit 3 as
+          "ABS armed" does not fit.
+        evidence: >-
+          Four full-rate rides of one day, moving, ordered by median rear-wheel acceleration:
+          level 0 -0.10 g, 1 +0.02, 2 +0.12, 3 +0.24, 4 +0.36, 5 +0.47, 6 +0.56, 7 +0.66 g,
+          with 41.7, 38.7, 12.0, 4.3, 2.0, 1.0, 0.3 and under 0.1 % of moving time. The
+          reference is the wheel-speed derivative, not an independent sensor, hence
+          hypothesis. Level 1 (bit 3 alone) is also what the frame shows at standstill.
+        example: { frame: "2B 21 2B 78 00 04 00 00", value: 2 }
+      - name: b5_bit0_unknown
+        addr: { byte: 5, bit: 0 }
+        status: unknown
+        description: Rarely set (under 0.1 % of frames). Not decoded.
       - name: b6b7_always_zero
         addr: { byte: 6, len: 2, endian: big, signed: false }
         status: unknown
@@ -169,19 +188,25 @@ messages:
         example: { frame: "49 4E 07 66 03 08", value: 3 }
       - name: tcs_level
         addr: { byte: 3, bit: 1, bit_len: 4 }
-        values: { 0: "probably TCS OFF (not confirmed)", 1: "TCS 1", 2: "TCS 2", 3: "TCS M (manual)" }
+        values: { 0: "probably TCS OFF (not confirmed)", 1: "TCS level 1", 2: "TCS level 2", 3: "TCS level 3" }
         status: confirmed
         confidence: high
-        confirmed_by: "The dash on video with spoken markers, through 0x226 B3"
+        confirmed_by: "The dash on video with spoken markers, through 0x226; the rider's own Manual setting"
         description: >-
-          Traction-control setting. The same value is repeated in 0x226 B3 and in 0x215.
-          Value 0 is probably TCS OFF, which this bike offers, but that is not confirmed:
-          it appeared on one ride only, and nobody noted TCS OFF being selected on it. No
-          capture has a deliberate switch to OFF yet.
+          Traction-control level in effect: a copy of 0x226 `tcs_level` (B0 bits 3..2), not of
+          the mode the dash shows (0x226 `tcs_mode`). In the TCS 1 and TCS 2 modes the two are
+          equal. In M (manual) this field carries the TCS level the rider set inside M, while
+          the dash shows "M". Value 0 is probably TCS OFF, which this bike offers, but that is
+          not confirmed: it appeared on one ride only, and nobody noted TCS OFF being selected
+          on it. No capture has a deliberate switch to OFF yet.
         evidence: >-
-          Equal to 0x226 B3 in more than 420 000 paired frames; the only mismatches are the
-          first frame after power-on and a one-frame lag at a change. 13 rider-made changes
-          covering levels 1, 2 and M.
+          Equal to 0x226 B0 bits 3..2 in 796 198 of 796 307 paired frames over five recordings
+          of one day; the rest are the first frames after power-on and a one-frame lag at a
+          change. Equal to 0x226 B3 in only 792 600 of them: every mismatch is M with the
+          manual TCS level at 2, and when the rider raised it to 3 inside M, this field went
+          2 -> 3 within 10 ms of 0x226 B0. Earlier rides agreed with 0x226 B3 in more than
+          420 000 frames because the rider's M setup then had TCS 3. 13 rider-made changes
+          across levels 1, 2 and M on earlier rides.
         example: { frame: "49 4E 07 66 03 08", value: 3 }
       - name: start_flag
         addr: { byte: 3, bit: 0 }
@@ -189,9 +214,12 @@ messages:
         confidence: medium
         description: >-
           Set while the engine is cranking: in 13 of 13 engine starts it comes on with the
-          first cranking frame and clears 0.7-0.9 s later when the engine idles. On some rides
-          it is also set for long stretches with the ignition on and the engine off, so the
-          exact meaning is open. It is not a shift flag: clear at all 535 gear changes checked.
+          first cranking frame and clears 0.7-0.9 s later when the engine idles; the same at
+          nine more starts on a later ride (0.7-1.0 s). It is also set for about 0.1 s just
+          before every key-off, but not when the engine stops with the ignition left on. On
+          some rides it is set for long stretches with the ignition on and the engine off, so
+          the exact meaning is open. It is not a shift flag: clear at all 535 gear changes
+          checked.
       - name: gear_requested
         addr: { byte: 4, bit: 0, bit_len: 3 }
         unit: gear
@@ -236,7 +264,15 @@ messages:
           with a closed throttle and the clutch engaged, but 0x08 never occurs in 6th gear
           and 0x04 never occurs in 1st. That fits "upshift possible" (bit 3) and "downshift
           possible" (bit 2), the two quickshifter windows, better than a plain drive/overrun
-          state. Not checked against the quickshifter arrows on the dash.
+          state. A later full-rate ride agrees: 0x04 never in 1st (0 of 81 037 frames above
+          1500 rpm), 0x08 in 1st to 5th (6th was not used). Quickshifts show in this byte:
+          on 57 of 57 upshifts with the throttle open it goes 0x08 -> 0x00 for about 300 ms,
+          starting about 50 ms before the gear changes, while the throttle valve stays open and
+          the engine speed dips (ignition cut); on 76 downshifts 0x04 -> 0x00 for about 230 ms,
+          with the throttle valve blipped open while the grip stays closed in 83 % of them. The
+          rider's quickshifter on/off settings are separate bits (0x226 `qs_up_enabled`,
+          `qs_down_enabled`); they were switched only with the engine off, so they do not test
+          this byte yet.
         example: { frame: "49 4E 07 66 03 08", value: 2 }
 
   0x215:
@@ -246,7 +282,8 @@ messages:
     status: confirmed
     summary: >-
       Throttle grip position and throttle valve opening as two separate 16-bit words, plus
-      copies of the traction-control level and the riding mode.
+      copies of rider settings from 0x226: traction-control mode and level, one of the two
+      assist levels, the quickshifter enables and the riding mode.
     signals:
       - name: throttle_valve
         addr: { byte: 0, len: 2, endian: big, signed: false }
@@ -277,13 +314,17 @@ messages:
           The fully open plateau at 690-696 repeats on four rides. `grip_closed` is set in
           every frame where this word is 0.
         example: { frame: "00 95 00 83 03 2B 06 02", value: 131 }
-      - name: tcs_level_b4
+      - name: tcs_mode
         addr: { byte: 4, bit: 0, bit_len: 2 }
         status: confirmed
         confidence: medium
-        confirmed_by: "Copy of 0x226 `tcs_level`; nothing outside the bus"
-        description: "Copy of the traction-control level (see 0x209 `tcs_level`)."
-        evidence: "Follows 0x226 B3 through levels 1, 2, M and 0 on full-rate captures and long-ride logs."
+        confirmed_by: "Copy of 0x226 `tcs_mode`; nothing outside the bus"
+        description: "Copy of the selected traction-control mode (see 0x226 `tcs_mode`): 1, 2 or 3 = M."
+        evidence: >-
+          Follows 0x226 B3 through modes 1, 2, M and 0 on full-rate captures and long-ride
+          logs. On a day with M set to TCS level 2, where mode and level differ, it equals
+          0x226 B3 in 796 234 of 796 242 paired frames over five recordings and not the level.
+        example: { frame: "00 95 00 83 03 2B 06 02", value: 3 }
       - name: grip_closed
         addr: { byte: 4, bit: 5 }
         status: confirmed
@@ -297,20 +338,55 @@ messages:
         addr: { byte: 4, bit: 6, bit_len: 2 }
         status: unknown
         description: "Takes all four values during a ride, independent of the riding mode. Not decoded."
+      - name: assist_level_b
+        addr: { byte: 5, bit: 0, bit_len: 2 }
+        status: hypothesis
+        confidence: medium
+        description: >-
+          Copy of 0x226 `assist_level_b` (the SCS or LIF level, 1-3). Hypothesis because the
+          original is one.
+        evidence: >-
+          Equal to 0x226 B5 bits 3..2 in 796 237 of 796 242 paired frames over five recordings,
+          including an M edit that moved it 1 -> 3; the misses are one-frame lags at changes.
+        example: { frame: "00 95 00 83 03 2B 06 02", value: 3 }
       - name: tcs_level_b5
         addr: { byte: 5, bit: 0, bit_len: 2 }
+        dbc: false
+        status: ruled_out
+        description: >-
+          An earlier reading of B5 as another copy of the traction-control level,
+          B5 = 0x28 + level. It held only while the presets were in use and both quickshifter
+          directions were on: B5 bits 1..0 are `assist_level_b`, bit 3 is
+          `qs_down_enabled`, bit 5 is `qs_up_enabled`.
+      - name: qs_down_enabled
+        addr: { byte: 5, bit: 3 }
         status: confirmed
         confidence: medium
-        confirmed_by: "Copy of 0x226 `tcs_level`; nothing outside the bus"
-        description: "Another copy of the traction-control level. B5 = 0x28 + level."
-        evidence: "Equal to 0x226 B3 in every once-a-second sample of a six-hour ride (22 700 samples), one miss at a change."
-      - name: tcs_level_b6
+        confirmed_by: "Copy of 0x226 `qs_down_enabled`; nothing outside the bus"
+        description: "Copy of the quickshifter DOWN setting (1 = on)."
+        evidence: >-
+          Equal to 0x226 B1 bit 0 in all 796 242 paired frames over five recordings, through
+          the OFF and ON switch made in the dash menu, 10 ms after it.
+      - name: qs_up_enabled
+        addr: { byte: 5, bit: 5 }
+        status: confirmed
+        confidence: medium
+        confirmed_by: "Copy of 0x226 `qs_up_enabled`; nothing outside the bus"
+        description: "Copy of the quickshifter UP setting (1 = on). The other bits of B5 not listed here are always 0."
+        evidence: >-
+          Equal to 0x226 B5 bit 5 in 796 241 of 796 242 paired frames over five recordings,
+          through the OFF and ON switch made in the dash menu; the miss is the frame of the
+          change.
+      - name: tcs_level
         addr: { byte: 6, bit: 1, bit_len: 2 }
         status: confirmed
         confidence: medium
         confirmed_by: "Copy of 0x226 `tcs_level`; nothing outside the bus"
-        description: "Another copy of the traction-control level. B6 = level × 2; bit 7 is set briefly at wake-up."
-        evidence: "Same comparison as `tcs_level_b5`."
+        description: "Copy of the traction-control level in effect (see 0x209 `tcs_level`). B6 = level × 2; bit 7 is set briefly at wake-up."
+        evidence: >-
+          Equal to 0x226 B0 bits 3..2 in 796 236 of 796 242 paired frames over five recordings,
+          including the stretches in M where level and mode differ.
+        example: { frame: "00 95 00 83 03 2B 06 02", value: 3 }
       - name: ride_mode
         addr: { byte: 7, bit: 6, bit_len: 2 }
         values: { 0: "D-MODE 1", 1: "D-MODE 2", 2: "D-MODE 3", 3: "D-MODE 4" }
@@ -322,16 +398,19 @@ messages:
         example: { frame: "00 95 00 83 03 2B 06 02", value: 0 }
 
   0x226:
-    name: mode_tcs
+    name: rider_settings
     dlc: 7
     rate_hz: 100
     status: confirmed
     summary: >-
-      Riding mode and traction-control setting, sent continuously. The value changes only
+      The settings the rider makes in the dash menu, sent continuously: riding mode,
+      traction-control mode and level, two further assist levels (SCS and LIF, which is which
+      is open), the quickshifter enables and the brake-control mode. The frame changes only
       when the rider changes a setting.
     notes:
       - "The very first frame after power-on reads `05 01 00 01 00 25 28` whatever the real settings; the real values follow within 10 ms."
-      - "B1 is always 0x01; B2, B4 and B6 are 0x00 in normal frames."
+      - "B2 and B4 are always 0x00, and so are the bits of B1 and B5 not listed here. B6 is 0x00 in normal frames."
+      - "In the TCS 1 and TCS 2 modes all three levels (`tcs_level`, `assist_level_a`, `assist_level_b`) equal the mode: B0 low nibble 0x5 and B5 0x26 in TCS 1, 0xA and 0x2A in TCS 2 (with BC2 and both quickshifter directions on). In M each level is whatever the rider set."
     signals:
       - name: ride_mode
         addr: { byte: 0, bit: 6, bit_len: 2 }
@@ -339,64 +418,143 @@ messages:
         status: confirmed
         confidence: medium
         confirmed_by: "The dash on video with spoken markers"
-        description: "Riding mode (see 0x209 `ride_mode`)."
-        evidence: "The rider stepped through the four modes with the dash in the frame; this field followed each step."
+        description: "Riding mode (see 0x209 `ride_mode`). This frame changes first; 0x209 follows 10-20 ms later."
+        evidence: "The rider stepped through the four modes with the dash in the frame; this field followed each step. Repeated twice on a later ride."
         example: { frame: "0F 01 00 03 00 2D 00", value: 0 }
-      - name: tcs_pattern
-        addr: { byte: 0, bit: 0, bit_len: 4 }
-        values: { 0: "probably TCS OFF (not confirmed)", 5: "TCS 1", 10: "TCS 2", 15: "TCS M" }
+      - name: tcs_level
+        addr: { byte: 0, bit: 2, bit_len: 2 }
+        values: { 0: "probably TCS OFF (not confirmed)", 1: "TCS level 1", 2: "TCS level 2", 3: "TCS level 3" }
         status: confirmed
         confidence: high
-        confirmed_by: "Copy of `tcs_level` in the same frame; nothing outside the bus"
-        description: "The 2-bit traction-control level written twice: 0x5, 0xA or 0xF."
-        evidence: "Always equal to B3 written twice, in every frame of every capture; one transitional value seen once at a change."
-        example: { frame: "0F 01 00 03 00 2D 00", value: 15 }
-      - name: tcs_level
+        confirmed_by: "The dash on video for the TCS 1 and TCS 2 modes; the rider's own M setup (TCS 2, later raised to 3)"
+        description: >-
+          Traction-control level in effect. In the TCS 1 and TCS 2 modes it equals the mode;
+          in M it is the level the rider set inside M. 0x209 B3 bits 4..1 and 0x215 B6 bits
+          2..1 copy this field.
+        evidence: >-
+          On a day when the rider's M setup had TCS level 2, the dash showed M, `tcs_mode` read
+          3 and this field read 2; when the rider raised the level to 3 inside M, B0 went 0x0B ->
+          0x0F and the 0x209 copy followed 10 ms later. In the presets it equals the mode shown
+          on the dash at every filmed change.
+        example: { frame: "0B 01 00 03 00 26 00", value: 2 }
+      - name: assist_level_a
+        addr: { byte: 0, bit: 0, bit_len: 2 }
+        values: { 1: "level 1", 2: "level 2", 3: "level 3" }
+        status: hypothesis
+        confidence: medium
+        description: >-
+          The SCS (slide control) or LIF (lift control) level, 1-3; which of the two is not
+          known. 1 in the TCS 1 mode, 2 in TCS 2, 3 in the rider's M setup. The other one is
+          `assist_level_b`.
+        example: { frame: "0B 01 00 03 00 26 00", value: 3 }
+      - name: tcs_pattern
+        addr: { byte: 0, bit: 0, bit_len: 4 }
+        dbc: false
+        status: ruled_out
+        description: >-
+          An earlier reading of the low nibble of B0 as the TCS level written twice (0x5 =
+          TCS 1, 0xA = TCS 2, 0xF = M). It is two fields, `tcs_level` and `assist_level_a`;
+          0x5 and 0xA are the two presets, and in M the nibble is whatever the rider set
+          (0xB with TCS 2 and the assist at 3, 0xF with everything at 3).
+      - name: qs_down_enabled
+        addr: { byte: 1, bit: 0 }
+        values: { 0: "off", 1: "on" }
+        status: confirmed
+        confidence: medium
+        confirmed_by: "The dash on video while the rider switched the setting in the menu"
+        description: "Quickshifter DOWN enabled, the rider's menu setting. The rest of B1 is always 0."
+        evidence: >-
+          Switched OFF and back ON in the menu with the dash filmed: the bit followed both
+          within 25 ms of the dash. 1 on every other recording, where the setting was on.
+        example: { frame: "0F 01 00 03 00 2D 00", value: 1 }
+      - name: tcs_mode
         addr: { byte: 3 }
         values: { 0: "probably TCS OFF (not confirmed)", 1: "TCS 1", 2: "TCS 2", 3: "TCS M (manual)" }
         status: confirmed
         confidence: high
         confirmed_by: "The dash on video with spoken markers"
         description: >-
-          Traction-control setting. Levels 1 and 2 can be switched while riding with the
-          throttle closed; M can be entered or left only at a standstill, and the captures
-          agree: every change into or out of M happened at 0 km/h.
-        evidence: "12 changes of mode and TCS level in one filmed session, each matched to the value on the dash; 13 TCS changes across all sessions."
-        example: { frame: "0F 01 00 03 00 2D 00", value: 3 }
+          Traction-control mode as the dash shows it. Levels 1 and 2 can be switched while
+          riding with the throttle closed; M can be entered or left only at a standstill, and
+          the captures agree: every change into or out of M happened at 0 km/h. The level in
+          effect is `tcs_level`, which differs from this field in M.
+        evidence: >-
+          12 changes of mode and TCS level in one filmed session, each matched to the value on
+          the dash; 13 TCS changes across all early sessions. A later filmed session: 9 of 9
+          changes within 61 ms of the dash, and 22 more changes on that day, all at a
+          standstill.
+        caveats: >-
+          Once, inside M, this byte went 3 -> 2 -> 3 for 2 s while the rest of the frame and
+          0x209 stayed put. Not explained.
+        example: { frame: "0B 01 00 03 00 26 00", value: 3 }
       - name: tcs_level_b5
         addr: { byte: 5, bit: 2, bit_len: 2 }
+        dbc: false
+        status: ruled_out
+        description: >-
+          An earlier reading of B5 as 0x20 + TCS level × 4 + `bc_mode`, with bit 5 always set.
+          It fitted every frame of the early rides because the presets were in use, or M with
+          every level at 3, and the quickshifter was always on. Bits 3..2 are
+          `assist_level_b`, bit 5 is `qs_up_enabled`.
+      - name: bc_mode
+        addr: { byte: 5, bit: 0, bit_len: 2 }
+        values: { 1: "BC1", 2: "BC2" }
         status: confirmed
         confidence: high
-        confirmed_by: "Copy of `tcs_level` in the same frame; nothing outside the bus"
-        description: "Copy of `tcs_level`. B5 = 0x20 + level × 4 + `setting_2bit`, which fits every frame of a 42-minute ride."
-        evidence: "The formula fits 253 833 of 253 833 frames of one ride and every frame of three others."
-      - name: setting_2bit
-        addr: { byte: 5, bit: 0, bit_len: 2 }
+        confirmed_by: "The dash on video while the rider switched BC1 and BC2 in the menu"
+        description: >-
+          Brake control (BC) mode. The ABS unit repeats it in 0x268 B4 bits 4..3, about 20 ms
+          later. The field changes when a choice is accepted in the menu, not while it is only
+          highlighted.
+        evidence: >-
+          BC2 -> BC1 -> BC2 in the menu with the dash filmed: the field went 2 -> 1 -> 2 within
+          60 ms of each accept. Equal to 0x268 B4 bits 4..3 in 414 370 of 414 370 paired frames
+          of the earlier rides. It read 1 in every capture up to 2026-07 and 2 in every one
+          from 2026-09, which matches the rider's own setting (BC2 since the summer).
+        example: { frame: "0F 01 00 03 00 2D 00", value: 1 }
+      - name: assist_level_b
+        addr: { byte: 5, bit: 2, bit_len: 2 }
+        values: { 1: "level 1", 2: "level 2", 3: "level 3" }
         status: hypothesis
         confidence: medium
         description: >-
-          A two-bit rider setting that the ABS unit repeats in 0x268 B4 bits 4..3: the two
-          are equal in every paired frame. It read 1 in every early capture and 2 in every
-          later one, never changing within a session, and it is independent of the TCS
-          level. Candidate: brake control mode (BC1 / BC2). Not verified.
+          The other of SCS and LIF, level 1-3 (see `assist_level_a`). 1 in the TCS 1 mode, 2 in
+          TCS 2, 1 in the rider's M setup and 3 after an edit inside M that changed nothing
+          else. 0x215 B5 bits 1..0 copy it.
+        example: { frame: "0B 01 00 03 00 26 00", value: 1 }
+      - name: qs_up_enabled
+        addr: { byte: 5, bit: 5 }
+        values: { 0: "off", 1: "on" }
+        status: confirmed
+        confidence: medium
+        confirmed_by: "The dash on video while the rider switched the setting in the menu"
+        description: "Quickshifter UP enabled, the rider's menu setting."
+        evidence: >-
+          Switched OFF and back ON in the menu with the dash filmed: the bit followed both
+          within 50 ms of the dash. 1 on every other recording, where the setting was on.
         example: { frame: "0F 01 00 03 00 2D 00", value: 1 }
 
   0x22A:
-    name: brake_switch_candidate
+    name: brake_switch
     dlc: 2
     rate_hz: 10
-    status: hypothesis
+    status: confirmed
     summary: >-
-      Two bytes, normally 00 00. One bit follows the rear brake pedal.
+      Two bytes, normally 00 00. One bit is the brake light switch, set by either brake.
+      Every other bit stayed 0 through a whole day of riding.
     signals:
       - name: brake_switch
         addr: { byte: 1, bit: 3 }
-        status: hypothesis
+        status: confirmed
         confidence: medium
+        confirmed_by: "The rider's announced lever squeezes and pedal presses at standstill"
         description: >-
-          B1 = 0x08 while the rear brake pedal switch (0x268 B4 bit 2) is on: 2209 of 2217
-          such frames on one ride, 99.2 % on another. Whether the front lever also sets it
-          (which would make it a brake-light signal) is not tested.
+          Brake light switch: set by the rear pedal switch or the front lever switch, the same
+          signal as 0x268 B4 bit 2.
+        evidence: >-
+          A standstill test, front lever four times, then rear pedal four times: set during all
+          eight. Equal to 0x268 B4 bit 2 in 99.76 % of 100 Hz samples over a day of riding;
+          2209 of 2217 frames with that bit on in an earlier ride, 99.2 % on another.
       - name: b1_motion_flag
         addr: { byte: 1, bit: 4, bit_len: 4 }
         dbc: false
@@ -410,14 +568,14 @@ messages:
     dlc: 2
     rate_hz: 10
     status: unknown
-    summary: "Always `00 00` in every capture."
+    summary: "Always `00 00` in every capture. It may belong to equipment this base model lacks (heated grips, heated seat, semi-active suspension on the GT models)."
 
   0x22E:
     name: unknown_22e
     dlc: 2
     rate_hz: 10
     status: unknown
-    summary: "Always `00 00` in every capture, at standstill and while riding."
+    summary: "Always `00 00` in every capture, at standstill and while riding. It may belong to equipment this base model lacks (heated grips, heated seat, semi-active suspension on the GT models)."
 
   0x23A:
     name: wake_state
@@ -434,8 +592,8 @@ messages:
         status: hypothesis
         confidence: low
         description: >-
-          0x04 from wake-up for anything between 0.1 s and 54 s, back to 0x00 before the
-          engine is started, and 0x00 from then on whether the engine runs or not (including
+          0x04 from wake-up for anything between 0.1 s and 54 s (0.1-1.9 s at each of five
+          key-ons on a later ride), back to 0x00 before the engine is started, and 0x00 from then on whether the engine runs or not (including
           a 66 s stall). It does not tell a running engine from a stopped one, as we first
           thought. Use `engine_rpm` for that.
         example: { frame: "04 FF FF", value: 4 }
@@ -445,7 +603,7 @@ messages:
     dlc: 4
     rate_hz: 1
     status: confirmed
-    summary: "Coolant temperature, an air temperature and a 16-bit engine-load-like counter, once a second."
+    summary: "Coolant temperature, the air temperature the dash shows and a 16-bit engine-load-like counter, once a second."
     signals:
       - name: coolant_temp
         addr: { byte: 0 }
@@ -456,29 +614,47 @@ messages:
         max: 130
         status: confirmed
         confidence: high
-        confirmed_by: "OBD-II PID 0x05 (same ECU); one dash reading on video"
-        description: "Engine coolant temperature, raw × 0.625 − 30."
+        confirmed_by: "OBD-II PID 0x05 (same ECU); the dash coolant readout on video"
+        description: >-
+          Engine coolant temperature, raw × 0.625 − 30. The dash shows this value rounded
+          down to a whole degree.
         evidence: >-
           132 pairs with OBD-II PID 0x05 from six sessions, 13 to 98 °C: least-squares fit
           0.6225 × raw − 29.93, and with the rounded 0.625 / −30 the largest error is 1.0 °C
-          (the OBD value itself has 1 °C steps). A dash reading of 57 °C matched raw 0x8B
-          (56.9 °C).
+          (the OBD value itself has 1 °C steps). Dash readings on video: 57 °C matched raw
+          0x8B (56.9 °C) on one ride; on another, 11 steady readings from 77 to 85 °C equal
+          floor(raw × 0.625 − 30) in 10 cases (mean error +0.1 °C).
+        caveats: >-
+          Not checked against the dash above 85 °C. While the temperature rises fast the dash
+          lags by 1-2 °C. The cooling-fan state is not on the broadcast; the coolant peaks near
+          105 °C in traffic and then falls quickly, which is where the fan cuts in.
         example: { frame: "C0 5D 01 4A", value: 90.0 }
-      - name: air_temp
+      - name: ambient_temp
         addr: { byte: 1 }
-        scale: 1
-        offset: -55
+        scale: 0.625
+        offset: -30
         unit: degC
-        min: -40
+        min: -30
         max: 70
-        status: hypothesis
-        confidence: low
+        status: confirmed
+        confidence: medium
+        confirmed_by: "The dash air-temperature readout on video, while moving"
         description: >-
-          An air temperature. raw − 55 gave a believable 13 °C on one cold start, but on
-          another cold start it read 32 °C against 24 °C coolant, and it reads 39-44 °C while
-          riding on a warm day. Either the sensor sits where the engine heats it (intake air)
-          or the scale is wrong. No reference temperature in our captures.
-        example: { frame: "C0 5D 01 4A", value: 38 }
+          The air temperature the dash shows, raw × 0.625 − 30 (same encoding as the coolant
+          byte); the dash shows it rounded down to a whole degree. It reads true outside air
+          only on the move: at a standstill it heat-soaks a few degrees, and the dash then
+          keeps showing the last value it took while moving. Where the sensor sits (outside
+          air or intake) is not known.
+        evidence: >-
+          13 dash readings of 8-11 °C on video while riding equal floor(raw × 0.625 − 30) in 10
+          cases, the rest one degree off at a degree boundary. The rider read 6-9 °C on the
+          dash on every ride of that day while the byte sat at 59-62 (6.9-8.8 °C) on the move.
+          At a traffic light the byte rose 61 -> 64 while the dash held 8 °C, and the dash
+          jumped to 10 °C when the bike moved off.
+        caveats: >-
+          An earlier formula, raw − 55, read 1-2 °C low against the dash and is withdrawn.
+          Never compare with a dash reading taken at a standstill.
+        example: { frame: "C0 5D 01 4A", value: 28.1 }
       - name: load_counter
         addr: { byte: 2, len: 2, endian: big, signed: false }
         unit: raw
@@ -493,7 +669,7 @@ messages:
     dlc: 1
     rate_hz: 10
     status: unknown
-    summary: "Always `00` in every capture."
+    summary: "Always `00` in every capture. It may belong to equipment this base model lacks (heated grips, heated seat, semi-active suspension on the GT models)."
 
   0x250:
     name: imu_accel
@@ -515,15 +691,22 @@ messages:
         max: 4
         status: confirmed
         confidence: medium
-        confirmed_by: "The derivative of wheel speed; GPS speed change"
+        confirmed_by: "A phone accelerometer on the handlebar; the derivative of wheel speed; GPS speed change"
         description: >-
           Longitudinal acceleration, (raw − 7000) / 992. Positive when the bike accelerates.
           7000 is the nominal zero (the reset value); this bike reads about 7056 when level
-          and at rest, which includes the mounting angle of the sensor.
+          and at rest, which includes the mounting angle of the sensor. While riding on level
+          road the zero is lower, 7026-7029, because the riding attitude is about 1.7° more
+          nose-down than at rest.
         evidence: >-
-          Correlation 0.97 with the derivative of wheel speed over one ride; sign agrees with
-          GPS speed change in 93 % of samples above 0.1 g on another.
-        caveats: "The zero is known to about ±20 counts (±0.02 g) and includes the mounting angle of the IMU."
+          Against a phone accelerometer on the handlebar, two recordings: 993-999 counts per g
+          on this axis, the same as gravity gives. Correlation 0.97 with the derivative of
+          wheel speed over one ride, with a slope of 1.07-1.11 rather than 1, because the bike
+          squats and dives with acceleration and the axis then picks up part of gravity (the
+          phone pitches with it and sees 1.00). Sign agrees with GPS speed change in 93 % of
+          samples above 0.1 g on another ride. Riding zero 7026-7029 at zero wheel acceleration
+          on four rides of one day (round trips), moving the right way with road grade.
+        caveats: "The zero is known to about ±20 counts (±0.02 g), includes the mounting angle of the IMU and differs between rest (about 7056) and riding (about 7027)."
         example: { frame: "1B B6 1B 37 1F CB 20 00", value: 0.095 }
       - name: accel_y
         addr: { byte: 2, len: 2, endian: big, signed: false }
@@ -607,26 +790,29 @@ messages:
         evidence: >-
           Two lifts off the side stand (14-15° measured on the accelerometer against the
           integrated rate) give 96.5 and 97.9 counts per °/s; a phone gyroscope fixed above the dash
-          gives 105-107. So 100 within about 7 %.
+          gives 105-107; a phone gyroscope on the handlebar, above 40 km/h where steering is
+          small, gives 95-97 on two recordings of a later ride. So 100 within about 7 %.
         example: { frame: "74 A8 74 02 76 30 D8 D8", value: -1.36 }
       - name: pitch_rate
         addr: { byte: 2, len: 2, endian: big, signed: false }
         scale: 0.01
         offset: -300
         unit: deg/s
-        status: hypothesis
+        status: confirmed
         confidence: medium
+        confirmed_by: "A phone gyroscope on the handlebar, above 40 km/h; the corner geometry against yaw"
         description: >-
           Pitch rate, (raw − 30000) / 100. Large under braking dive. In a steady corner it
           shows a steady offset equal to −yaw × tan(lean), which is the turn seen from a
-          leaned sensor and not cross-talk. Hypothesis because nothing outside the IMU was
-          compared with this axis: its scale is inferred from the yaw axis.
+          leaned sensor and not cross-talk. 0x258 B6:B7 carries a second, separately filtered
+          pitch rate.
         evidence: >-
-          With lean taken from the reconstruction, the corner offset follows
-          −yaw × tan(lean) with a slope between 0.98 and 1.07 on two rides and two sample
-          captures. That ties the pitch scale to the yaw scale within about 7 %, assuming
-          the reconstruction is right.
-        caveats: "Scale not measured directly. Sign under braking not verified."
+          Against a phone gyroscope on the handlebar, fitted on all three axes at once above
+          40 km/h: 97-100 counts per °/s on two recordings. Independently, with lean taken
+          from the reconstruction, the corner offset follows −yaw × tan(lean) with a slope
+          between 0.98 and 1.07 on two rides and two sample captures, which ties the pitch
+          scale to the yaw scale within about 7 %.
+        caveats: "The phone reference turned with the handlebar, so the scale is known to a few percent. Sign under braking not verified."
         example: { frame: "74 A8 74 02 76 30 D8 D8", value: -3.02 }
       - name: yaw_rate
         addr: { byte: 4, len: 2, endian: big, signed: false }
@@ -641,7 +827,7 @@ messages:
         evidence: >-
           Against GPS heading over 15 whole turns of 30-71°: 99.2-99.7 counts per °/s. Sign
           agrees with the GPS course rate in 98 % of samples above 5 °/s and in 15 of 15
-          turns.
+          turns. A phone gyroscope on the handlebar gives 96-104 above 40 km/h on a later ride.
         example: { frame: "74 A8 74 02 76 30 D8 D8", value: 2.56 }
       - name: b6_unknown
         addr: { byte: 6 }
@@ -665,7 +851,9 @@ messages:
         evidence: >-
           197 s of steady corners on one ride against a phone's attitude recorded at 50 Hz;
           the bike's own pitch gyro gives a second, phone-free estimate that reads 5-10 %
-          higher.
+          higher. A repeat on a cold day with the phone on the handlebar (above 40 km/h, up
+          to 18° of lean, two recordings): 0.97 and 0.94 × the phone angle, r 0.96, so the
+          same answer within about 5 % on a different day, mount and tyre temperature.
 
   0x258:
     name: imu_derived
@@ -673,17 +861,20 @@ messages:
     rate_hz: 100
     status: hypothesis
     summary: >-
-      A second IMU frame with packed fields. One word behaves like a pitch rate with the
-      cornering component removed, which suggests the IMU computes its own attitude; the
-      rest is not decoded.
+      A second IMU frame with packed fields. B6:B7 is a second pitch-rate channel, apparently
+      with the cornering component removed, which suggests the IMU computes its own attitude;
+      the rest is not decoded.
     signals:
       - name: b0b3_unknown
         addr: { byte: 0, len: 4, endian: big, signed: false }
         status: unknown
         description: >-
-          Packed fields. The low nibble of B0 takes only the values 1 and 2 and leans toward
-          1 in left-hand corners; the low nibble of B2 steps with lean angle modulo 16. No
-          plain 8- or 16-bit lean value was found in a bit-level search.
+          Packed fields. The low nibble of B0 takes only the values 1 and 2 (1 at rest, mostly 2
+          while moving) and leans toward 1 in left-hand corners. The high nibble of B0 is 5 at
+          rest; its median yaw rate per value runs steadily from about +1 °/s at 0 to about
+          −1.15 °/s at 13 and wraps at 14-15, but it is not lean. The low nibble of B2 steps
+          with lean angle modulo 16. No plain 8- or 16-bit lean value was found in a bit-level
+          search.
       - name: b4b5_always_zero
         addr: { byte: 4, len: 2, endian: big, signed: false }
         status: unknown
@@ -696,9 +887,15 @@ messages:
         status: hypothesis
         confidence: medium
         description: >-
-          Zero at 30000-30004. Follows the 0x254 pitch rate with the −yaw × tan(lean) corner
-          term removed, one frame later (correlation 0.94-0.98 on three rides against 0.52
-          for the raw pitch rate). Reads as the pitch rate in the road frame.
+          A second pitch rate, zero at 30000-30005, same encoding as 0x254. It follows the 0x254
+          pitch rate with the −yaw × tan(lean) corner term removed, one frame later
+          (correlation 0.94-0.98 on three rides against 0.52 for the raw pitch rate), so it
+          reads as the pitch rate in the road frame. It is filtered or sourced separately, not
+          a byte copy. Hypothesis because it is known only from other IMU words.
+        evidence: >-
+          On a cold-day ride with gentle corners, where the corner term is small: correlation
+          0.92-0.94 with the 0x254 pitch rate at 100 Hz, slope 0.87-0.90, no relation to roll,
+          yaw or the accelerometer, difference between the two words about 170 counts sd.
 
   0x25C:
     name: imu_unknown
@@ -706,16 +903,18 @@ messages:
     rate_hz: 100
     status: unknown
     summary: >-
-      Not decoded. B0 takes many values (16 seen) and B1 about a dozen (0x11-0x1C). The low
-      nibbles of B2 and B3 are always 0xB while the high nibbles vary. No correlation with
-      lean, yaw or roll above 0.24.
+      Not decoded. The low nibble of B0 is always 1 and the high nibble takes all 16 values;
+      the high nibble of B1 is always 1 and the low nibble takes all 16. Both sit at 5 at rest
+      and spread out as speed rises. The low nibble of B1 correlates −0.61 with a low-passed
+      roll rate; otherwise no correlation with lean, yaw or roll above 0.24. The low nibbles
+      of B2 and B3 are 0xB in 97-99 % of frames while the high nibbles vary.
 
   0x260:
     name: brake_pressure
     dlc: 8
     rate_hz: 100
     status: confirmed
-    summary: "Front brake hydraulic pressure as a 16-bit word, sent twice in the frame."
+    summary: "Front brake hydraulic pressure as a 16-bit word, sent twice in the frame. The rear circuit is not in it."
     notes:
       - "B4:B5 repeat B0:B1 exactly (no mismatch in 400 000 frames). B2:B3 and B6:B7 are always 0."
     signals:
@@ -726,16 +925,18 @@ messages:
         max: 2000
         status: confirmed
         confidence: high
-        confirmed_by: "The rider's announced lever use; coincidence with front ABS and front-wheel deceleration. No pressure gauge"
+        confirmed_by: "The rider's announced lever squeezes and pedal presses at standstill; coincidence with front ABS and front-wheel deceleration. No pressure gauge"
         description: >-
           Front brake pressure in raw units. 0 with the lever released (small values of 1-6
           also occur at rest). Normal riding stays under about 160; hard stops reach
-          200-840; a full squeeze at standstill reached 1361. The rear pedal does not
-          register here: the word stays 0 in more than 1000 frames where only the rear pedal
-          switch is on. The physical unit is not known.
+          200-840; a full squeeze at standstill reached 1361. Front circuit only: the rear
+          pedal does not move it. The physical unit is not known.
         evidence: >-
           Rises and falls with front lever use; hard stops with pressure above 760 coincide
-          with front ABS activity and front wheel deceleration.
+          with front ABS activity and front wheel deceleration. In a standstill test, front
+          lever then rear pedal, four squeezes reached 629-886 and four pedal presses stayed
+          at 3 or less while the brake light bit was on. Rear ABS events with the rear brake
+          alone show 7 or less.
         example: { frame: "01 06 00 00 01 06 00 00", value: 262 }
 
   0x268:
@@ -744,8 +945,8 @@ messages:
     rate_hz: 100
     status: confirmed
     summary: >-
-      A second speed value from the ABS unit, ABS intervention flags and the rear brake
-      pedal switch.
+      A second speed value from the ABS unit, ABS intervention flags, the brake light switch
+      and the brake-control mode.
     notes:
       - "B0 and B5 are always 0."
     signals:
@@ -757,7 +958,9 @@ messages:
           1 from power-on until the speed first passes about 6 km/h, then 0 through every
           later stop of the ride, and 1 again only in the last 0.2 s before the bus goes
           quiet. Possibly "ABS self-check not yet done". An earlier reading as a low-speed
-          indicator was wrong.
+          indicator was wrong. The same on five more key-ons of a later ride, including one
+          inside a recording after a 205 s key-off; a recording in which the bike never moved
+          stayed at 1.
       - name: vehicle_speed
         addr: { byte: 2, len: 2, endian: big, signed: false }
         scale: 0.056497
@@ -784,11 +987,14 @@ messages:
         confirmed_by: "The rear wheel-speed dip at each event; rear-brake stops announced by the rider"
         description: >-
           Rear ABS is intervening. Also set when the rear wheel slows sharply from engine
-          braking on a downshift with no brake applied.
+          braking on a downshift with no brake applied. Each event holds the flag for
+          0.46-0.50 s, so it is probably held for a fixed time rather than following the
+          modulation.
         evidence: >-
           A controlled rear-brake-only stop; an event called by the rider on video; three
-          more on a long ride. In each the rear wheel word drops 4-10 km/h below the front
-          within a few frames and the flag then stays on for about half a second.
+          more on a long ride; nine on a cold-day ride, several with front brake pressure 7
+          or less (rear brake alone). In each the rear wheel word drops 4-10 km/h below the
+          front within a few frames and the flag then stays on for about half a second.
         example: { frame: "00 00 04 28 09 00", value: 1 }
       - name: abs_front_active
         addr: { byte: 4, bit: 1 }
@@ -797,23 +1003,39 @@ messages:
         confirmed_by: "The rider's call and audible pulsing during deliberate hard stops; brake pressure; front wheel deceleration"
         description: "Front ABS is intervening."
         evidence: >-
-          Three events in total: two deliberate hard stops on one ride, with brake pressure
-          765-839, where the rider called the ABS pulse on video, and one lighter event on
-          another ride. Thin, but consistent.
-      - name: rear_brake_pedal
+          Four events in total: two deliberate hard stops on one ride, with brake pressure
+          765-839, where the rider called the ABS pulse on video, one lighter event on
+          another ride, and one on a cold day with the front wheel 7 km/h slower than the
+          rear. Thin, but consistent.
+      - name: brake_switch
         addr: { byte: 4, bit: 2 }
         status: confirmed
         confidence: medium
-        confirmed_by: "The rider's announced pedal presses"
-        description: "Rear brake pedal switch."
-        evidence: "Matches deliberate pedal presses at standstill; 120 presses on two rides."
-      - name: setting_2bit
-        addr: { byte: 4, bit: 3, bit_len: 2 }
-        status: hypothesis
-        confidence: medium
+        confirmed_by: "The rider's announced lever squeezes and pedal presses at standstill"
         description: >-
-          Copy of 0x226 `setting_2bit` (equal in every paired frame). Bit 3 was once read as
-          "ABS enabled" because it was always 1 in the early captures.
+          Brake light switch: rear pedal switch OR front lever switch. The front lever switch
+          closes late: while riding the bit is on in 31 % of samples with front pressure
+          20-50, 66 % at 50-100, 89 % at 100-200 and always from 200 up. So the bit alone does
+          not tell which brake is used; rear only = this bit on with 0x260 near 0. 0x22A B1
+          bit 3 carries the same signal. Earlier described as the rear pedal switch alone.
+        evidence: >-
+          Matches deliberate pedal presses at standstill (120 presses on two rides). A later
+          standstill test, front lever four times and then rear pedal four times, set it in
+          all eight. Same as 0x22A B1 bit 3 in 99.76 % of 100 Hz samples over a day.
+      - name: bc_mode
+        addr: { byte: 4, bit: 3, bit_len: 2 }
+        values: { 1: "BC1", 2: "BC2" }
+        status: confirmed
+        confidence: high
+        confirmed_by: "The dash on video while the rider switched BC1 and BC2 in the menu"
+        description: >-
+          Brake control mode, the ABS unit's copy of 0x226 `bc_mode`, about 20 ms after the
+          engine ECU. Bit 3 alone was once read as "ABS enabled" because it was always 1 in
+          the early captures, when the bike was on BC1.
+        evidence: >-
+          Equal to 0x226 B5 bits 1..0 in 414 370 of 414 370 paired frames of the earlier rides;
+          followed the filmed BC2 -> BC1 -> BC2 switch about 20 ms after 0x226.
+        example: { frame: "00 01 00 00 10 00", value: 2 }
 
   0x401:
     name: shutdown_state
@@ -831,7 +1053,7 @@ messages:
         description: >-
           0 for the whole ride, engine running or not. 1 only once the rest of the bus has
           gone quiet: at least 31 s of this frame alone at the end of one capture (the capture
-          ends first). The sender stays
+          ends first), and the whole of a 205 s key-off inside another. The sender stays
           awake for a while after key-off and says so. An earlier reading (0x80 = engine
           running) was the wrong way round.
         example: { frame: "00", value: 0 }
@@ -841,7 +1063,7 @@ messages:
     dlc: 4
     rate_hz: 10
     status: unknown
-    summary: "Always `00 00 00 00` in every capture."
+    summary: "Always `00 00 00 00` in every capture. It may belong to equipment this base model lacks (heated grips, heated seat, semi-active suspension on the GT models)."
 
 obd2:
   request_id: 0x7DF
@@ -920,10 +1142,13 @@ uds:
 open_questions:
   - title: "Where is the odometer?"
     text: >-
-      Not found. None of the 18 broadcast IDs carries a distance counter, and neither the
-      engine ECU nor the ABS unit returns the dash mileage on any identifier we swept. The
-      instrument cluster most likely keeps it, and the cluster did not answer on any
-      standard address.
+      Not found. None of the 18 broadcast IDs carries a distance counter (re-checked on a
+      2026-11 ride: no 8-, 16- or 24-bit field in either byte order tracks the distance
+      ridden), and neither the engine ECU nor the ABS unit returns the dash mileage on any
+      identifier we swept. The instrument cluster most likely counts it itself from a wheel
+      speed: its trip meter runs at 1.0388 × the distance integrated from 0x205
+      `wheel_speed_front`, so a trip that matches the dash can be computed from the bus, but
+      not the stored odometer. The cluster did not answer on any standard address.
     how_to_close: >-
       Not known. Passive ideas first: log while the dash menu shows the odometer and trip
       meters, and compare the idle bus with the cluster unplugged. We do not recommend sending
@@ -938,24 +1163,25 @@ open_questions:
       connectors carry traffic only while something acknowledges it. We have not tried
       listen-only mode on the Tracer 9.
     how_to_close: "Connect a transceiver in listen-only (silent) mode with the ignition on and count frames."
-  - title: "What is `setting_2bit`?"
-    text: "A two-bit setting sent by both the engine ECU (0x226) and the ABS unit (0x268). Brake control mode is the candidate."
-    how_to_close: "Switch BC1/BC2 with the bike parked while logging, then do the same for every other menu setting."
+  - title: "Which assist level is SCS and which is LIF?"
+    text: "0x226 carries two assist levels besides the TCS level, `assist_level_a` (B0 bits 1..0) and `assist_level_b` (B5 bits 3..2). One is the slide control (SCS) level and the other the lift control (LIF) level, but both were changed in the same session without video."
+    how_to_close: "At a standstill, in M, change only SCS and film the dash, then only LIF."
   - title: "What do the 0x209 B5 bits mean?"
-    text: "They fit quickshifter up and down availability, see `shift_window_bits`."
-    how_to_close: "Video of the dash quickshifter arrows together with a full-rate log."
+    text: "They fit quickshifter up and down availability, see `shift_window_bits`. The quickshifter on/off settings themselves are separate bits in 0x226 and 0x215."
+    how_to_close: "Ride a few minutes with the quickshifter UP set to OFF, then DOWN set to OFF, and see whether bit 3 and then bit 2 stop appearing."
   - title: "Traction control intervention and TCS OFF"
     text: >-
       Wheel slip is visible in 0x205, but no flag that says "traction control is cutting
-      power now" has been found. Level 0 is probably TCS OFF but has not been confirmed with a
-      deliberate switch during a capture.
-    how_to_close: "Select TCS OFF at standstill while logging; provoke TCS on a loose surface with video of the dash light."
+      power now" has been found; a cold-day ride had only about 1.5 s of real rear wheelspin
+      in total. Value 0 of `tcs_mode` and `tcs_level` is probably TCS OFF but has not been
+      confirmed with a deliberate switch during a capture.
+    how_to_close: "Select TCS OFF at standstill while logging and note what 0x226 B3, the assist levels, the 0x209 copy and 0x268 B4 do; provoke TCS on a loose surface."
   - title: "Cruise control"
     text: "The throttle valve stays open with the grip closed during what must be cruise control, but no cruise state or set-speed field has been identified. 0x215 B4 bits 7..6 are a candidate."
     how_to_close: "Switch cruise on, set, change the set speed and cancel while logging."
   - title: "Gyro roll and pitch scale, IMU frames 0x258 and 0x25C"
-    text: "Roll and pitch scales are known to 5-7 % only. 0x258 B0:B3 and all of 0x25C are not decoded; they may hold the IMU's own attitude estimate."
-    how_to_close: "A ride with a rigidly mounted reference IMU, including braking and slow lean sweeps."
+    text: "A phone gyroscope gave about 100 counts per °/s on all three axes, but it sat on the handlebar, which steers; roll and pitch are known to a few percent only, and the pitch sign under braking is not checked. 0x258 B6:B7 is a second pitch rate whose filtering is unknown. 0x258 B0:B3 and all of 0x25C are not decoded; they may hold the IMU's own attitude estimate."
+    how_to_close: "A ride with a reference IMU fixed to the body of the bike, including braking and slow lean sweeps."
   - title: "Other models"
     text: "Everything here comes from one 2022 base-model Tracer 9. Other Tracer 9s of any trim, year or market, the MT-09, the XSR900 and the Niken GT of the same generation probably share most of it. A second base Tracer 9 would show whether the data holds beyond one bike; the GT models have extra systems (semi-active suspension, radar on the GT+) that should add frames."
     how_to_close: "A 60-second idle capture from any of those bikes, with the model, year and market."
