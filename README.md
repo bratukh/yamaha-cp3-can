@@ -34,15 +34,16 @@ whether what is here holds beyond one bike. A one-minute capture settles it: see
 |---|---|---|---|
 | Engine speed | [0x209](docs/messages/0x209.md) | 100 Hz | confirmed |
 | Gear (sensor and shift mechanism) | [0x209](docs/messages/0x209.md) | 100 Hz | confirmed |
-| Riding mode, traction-control level | [0x209](docs/messages/0x209.md), [0x226](docs/messages/0x226.md) | 100 Hz | confirmed |
+| Riding mode, traction-control mode and level | [0x209](docs/messages/0x209.md), [0x226](docs/messages/0x226.md) | 100 Hz | confirmed |
+| Quickshifter on/off, brake-control mode (BC1/BC2) | [0x226](docs/messages/0x226.md) | 100 Hz | confirmed |
 | Front and rear wheel speed, wheel slip | [0x205](docs/messages/0x205.md) | 100 Hz | confirmed |
 | Throttle grip and throttle valve | [0x215](docs/messages/0x215.md) | 100 Hz | grip confirmed, valve hypothesis |
-| Front brake pressure | [0x260](docs/messages/0x260.md) | 100 Hz | confirmed (raw units) |
-| ABS front / rear intervention, rear brake pedal | [0x268](docs/messages/0x268.md) | 100 Hz | confirmed |
+| Front brake pressure (front circuit only) | [0x260](docs/messages/0x260.md) | 100 Hz | confirmed (raw units) |
+| ABS front / rear intervention, brake light switch | [0x268](docs/messages/0x268.md) | 100 Hz | confirmed |
 | Acceleration, 3 axes | [0x250](docs/messages/0x250.md) | 100 Hz | confirmed |
 | Roll, pitch and yaw rate | [0x254](docs/messages/0x254.md) | 100 Hz | confirmed |
 | **Lean angle** (reconstructed) | [0x254](docs/messages/0x254.md) + 0x205 | 100 Hz | confirmed, with limits |
-| Coolant temperature | [0x23E](docs/messages/0x23E.md) | 1 Hz | confirmed |
+| Coolant and air temperature | [0x23E](docs/messages/0x23E.md) | 1 Hz | confirmed |
 | Battery voltage, intake pressure, fuel trims and more | [OBD-II](docs/obd2.md) | on request | confirmed |
 
 The full table is in [docs/signals.md](docs/signals.md). What we do not know is in
