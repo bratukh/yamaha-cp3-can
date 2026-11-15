@@ -115,13 +115,10 @@ values; in steady corners the difference is small.
 ## What to make of it
 
 For a dash, an overlay or ride statistics it is good enough: the residual standard deviation
-in ordinary cornering is 2.8°, so about one reading in three is more than 3° off. A repeat on
-a cold day, with the phone on the handlebar and only data above 40 km/h (up to 18° of lean,
-two recordings), gave 0.97 and 0.94 × the phone angle, r 0.96: the same answer within about
-5 % on a different day, mount and tyre temperature, so the constant was left as it is.
+in ordinary cornering is 2.8°, so about one reading in three is more than 3° off.
 It is not a measurement instrument. The reference is a phone whose attitude is itself a sensor
 fusion. It was fixed to the bike's body, not to the handlebar, so steering did not move it; the
-main validation is one ride, one rider, one set of
+validation is one ride, one rider, one set of
 tyres.
 
 A better estimate should be possible by integrating the roll rate and correcting it with this

@@ -35,14 +35,12 @@ in the same places:
 | Riding mode | B4 >> 6 | B4 bits 7..6 |
 
 **YZF-R9, coolant temperature.** 0.625 × raw − 30 in both, on different IDs (theirs 0x512, ours
-0x23E). Theirs was fitted to dash readings, ours to OBD-II and then to dash readings on video.
-The byte next to it is 0.625 × raw − 30 in both as well: theirs calls it intake air, on ours
-the dash shows it as the air temperature.
+0x23E). Theirs was fitted to dash readings, ours to OBD-II.
 
 **YZF-R1.** It names 0x260 and 0x268 as ABS frames, with brake pressure in 0x260. Same IDs and
 same roles as ours.
 
-**MT-07 / Ténéré 700.** 0x268 B4 reads 0x04 while braking, which is our brake light bit.
+**MT-07 / Ténéré 700.** 0x268 B4 reads 0x04 while braking, which is our rear brake pedal bit.
 Gear is coded in three bits with 7 for "between gears", as in ours, though in a different
 frame.
 
@@ -53,6 +51,7 @@ frame.
 | Engine frame ID | R9: 0x27C | 0x209 |
 | Number of broadcast IDs | R9: 23 | 18 |
 | Frames per second | R9: about 506 | 1071 |
+| Byte next to coolant | R9: intake air, 0.625 × raw − 30 | `air_temp`, raw − 55, a hypothesis. Not resolved; see [0x23E](messages/0x23E.md). |
 | Diagnostic connector | R9: frames flow only while something acknowledges | Not tested in listen-only mode |
 | Engine speed and throttle IDs | MT-07 / Ténéré 700: 0x20A and 0x216 | 0x209 and 0x215 |
 | IMU frames | R9: not in the decode as far as we read | 0x250, 0x254 |
@@ -61,10 +60,8 @@ frame.
 
 One thing. The R9 table has the TCS setting in B3 of the engine frame. We had the TCS level
 from frame 0x226 and had not examined those bits of 0x209. We checked them on our logs: they
-equal 0x226 B3 in more than 420 000 paired frames. A later ride with the M setup at a
-different level showed that they carry the TCS level in effect (0x226 B0 bits 3..2) rather
-than the mode shown on the dash; the early rides could not tell the two apart. That field is
-in the database as [0x209 `tcs_level`](messages/0x209.md).
+equal 0x226 B3 in more than 420 000 paired frames. That field is in the database as
+[0x209 `tcs_level`](messages/0x209.md).
 
 Nothing else was changed. No scale, address or status in this repository comes from another
 source; each rests on the recordings described in [methodology.md](methodology.md).
