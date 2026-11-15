@@ -5,4 +5,4 @@ Front brake pressure (0x260 B0:B1) peaks at 839 raw in the first stop; the front
 In the second stop the flag comes on at 394 raw while the pressure is still rising (peak 765 raw) and stays on for 1.1 s.
 Look at: 0x260 B0:B1 (B4:B5 repeat it), 0x268 B4 bit 1, 0x205 B0:B1 (front wheel speed falls steeply), 0x209 B0:B1 (rpm).
 Odd: the ABS flag does not come on at the moment of peak pressure but while the wheel is already slowing; compare it with the front wheel speed.
-Note: the brake light bit (0x268 B4 bit 2) is on during both stops. It is set by the front lever as well as the rear pedal, so it does not show whether the rear brake was used.
+Note: the rear brake pedal bit (0x268 B4 bit 2) is also on during both stops, so these are not front-brake-only stops.
