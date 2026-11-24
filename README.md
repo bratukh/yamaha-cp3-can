@@ -1,10 +1,18 @@
-# yamaha-cp3-can
+# yamaha-cp3-can — Yamaha Tracer 9 CAN bus decode
 
 The CAN bus of the Yamaha Tracer 9 (2021–2024 generation, CP3 890 cc engine), decoded by
 listening at the diagnostic connector: 18 broadcast frames, the OBD-II PIDs the engine ECU
-answers, and the read-only UDS identifiers of the engine and ABS units.
+answers, and the read-only UDS identifiers of the engine and ABS units. The MT-09, XSR900 and
+Niken GT of the same generation share the platform but are not checked yet.
 
-Use it to build your own dash, data logger, lap timer feed or ride analysis.
+What is here: a **DBC file** (for SavvyCAN, cantools, Kvaser, PCAN), one page per CAN ID with
+layout, formula and evidence, sample `candump` captures, and a dependency-free Python decoder.
+Engine speed, gear, throttle, wheel speeds, brake pressure, ABS, traction control, ride mode,
+quickshifter and brake-control settings, the 6-axis IMU (lean angle, yaw rate, acceleration)
+and temperatures are all in the [table below](#all-signals-at-a-glance).
+
+Use it to build your own dash, data logger (ESP32 / TWAI, Raspberry Pi, any SocketCAN
+adapter), lap timer feed or ride analysis.
 
 > **Read-only.** Nothing here writes to the motorcycle, and the project does not accept
 > anything that does. Wiring into a vehicle bus is at your own risk. Read
@@ -46,12 +54,82 @@ whether what is here holds beyond one bike. A one-minute capture settles it: see
 | Coolant and air temperature | [0x23E](docs/messages/0x23E.md) | 1 Hz | confirmed |
 | Battery voltage, intake pressure, fuel trims and more | [OBD-II](docs/obd2.md) | on request | confirmed |
 
-The full table is in [docs/signals.md](docs/signals.md). What we do not know is in
+Every signal, with its bytes and formula, is in the [table below](#all-signals-at-a-glance) and,
+with evidence, in [docs/signals.md](docs/signals.md). What we do not know is in
 [docs/open-questions.md](docs/open-questions.md): the odometer, oil temperature, cruise
 control state and several whole frames are still open.
 
 The bike does not broadcast a lean angle. [docs/lean-reconstruction.md](docs/lean-reconstruction.md)
 shows how to get one from yaw rate and wheel speed, and how far to trust it.
+
+## All signals at a glance
+
+The table above says what you get; this one says where it is. Every confirmed or hypothesis
+signal on the broadcast frames, with its bytes and formula, so this page alone is enough to
+start decoding. Bytes are numbered from 0, multi-byte values are big-endian, and
+`value = raw × scale + offset`. Unknown bits, the evidence and an example frame are on each ID's
+page.
+
+<!-- BEGIN GENERATED: signals at a glance (tools/gen_docs.py) -->
+<details>
+<summary>Bytes and formulas for every confirmed and hypothesis signal</summary>
+
+| ID | Hz | Where | Signal | Value | Unit | Status |
+|---|---|---|---|---|---|---|
+| [0x205](docs/messages/0x205.md) | 100 | B0:B1 | `wheel_speed_front` | raw × 0.00990099 | km/h | confirmed (high) |
+| [0x205](docs/messages/0x205.md) | 100 | B2:B3 | `wheel_speed_rear` | raw × 0.00990099 | km/h | confirmed (medium) |
+| [0x205](docs/messages/0x205.md) | 100 | B5 bits 3..1 | `accel_level` | 0 = level 0 (decelerating), 1 = level 4, 2 = level 2, 3 = level 6, 4 = level 1, … |  | hypothesis (medium) |
+| [0x205](docs/messages/0x205.md) | | derived | `wheel_slip` | `wheel_speed_rear - wheel_speed_front` | km/h | confirmed (high) |
+| [0x209](docs/messages/0x209.md) | 100 | B0:B1 | `engine_rpm` | raw × 0.390625 | rpm | confirmed (high) |
+| [0x209](docs/messages/0x209.md) | 100 | B3 bits 7..5 | `gear_actual` | 0 = neutral, 1 = 1st, 2 = 2nd, 3 = 3rd, 4 = 4th, 5 = 5th, 6 = 6th | gear | confirmed (high) |
+| [0x209](docs/messages/0x209.md) | 100 | B3 bits 4..1 | `tcs_level` | 0 = probably TCS OFF (not confirmed), 1 = TCS level 1, 2 = TCS level 2, 3 = TCS level 3 |  | confirmed (high) |
+| [0x209](docs/messages/0x209.md) | 100 | B3 bit 0 | `start_flag` | raw |  | hypothesis (medium) |
+| [0x209](docs/messages/0x209.md) | 100 | B4 bits 2..0 | `gear_requested` | 0 = neutral, 1 = 1st, 2 = 2nd, 3 = 3rd, 4 = 4th, 5 = 5th, 6 = 6th, 7 = between gears | gear | confirmed (high) |
+| [0x209](docs/messages/0x209.md) | 100 | B4 bits 7..6 | `ride_mode` | 0 = D-MODE 1, 1 = D-MODE 2, 2 = D-MODE 3, 3 = D-MODE 4 |  | confirmed (medium) |
+| [0x209](docs/messages/0x209.md) | 100 | B5 bits 3..2 | `shift_window_bits` | 0 = neither, 1 = bit 2 only, 2 = bit 3 only |  | hypothesis (medium) |
+| [0x215](docs/messages/0x215.md) | 100 | B0:B1 | `throttle_valve` | raw | raw | hypothesis (medium) |
+| [0x215](docs/messages/0x215.md) | 100 | B2:B3 | `throttle_grip` | raw | raw | confirmed (medium) |
+| [0x215](docs/messages/0x215.md) | 100 | B4 bits 1..0 | `tcs_mode` | raw |  | confirmed (medium) |
+| [0x215](docs/messages/0x215.md) | 100 | B4 bit 5 | `grip_closed` | raw |  | confirmed (medium) |
+| [0x215](docs/messages/0x215.md) | 100 | B5 bits 1..0 | `assist_level_b` | raw |  | hypothesis (medium) |
+| [0x215](docs/messages/0x215.md) | 100 | B5 bit 3 | `qs_down_enabled` | raw |  | confirmed (medium) |
+| [0x215](docs/messages/0x215.md) | 100 | B5 bit 5 | `qs_up_enabled` | raw |  | confirmed (medium) |
+| [0x215](docs/messages/0x215.md) | 100 | B6 bits 2..1 | `tcs_level` | raw |  | confirmed (medium) |
+| [0x215](docs/messages/0x215.md) | 100 | B7 bits 7..6 | `ride_mode` | 0 = D-MODE 1, 1 = D-MODE 2, 2 = D-MODE 3, 3 = D-MODE 4 |  | confirmed (medium) |
+| [0x226](docs/messages/0x226.md) | 100 | B0 bits 7..6 | `ride_mode` | 0 = D-MODE 1, 1 = D-MODE 2, 2 = D-MODE 3, 3 = D-MODE 4 |  | confirmed (medium) |
+| [0x226](docs/messages/0x226.md) | 100 | B0 bits 3..2 | `tcs_level` | 0 = probably TCS OFF (not confirmed), 1 = TCS level 1, 2 = TCS level 2, 3 = TCS level 3 |  | confirmed (high) |
+| [0x226](docs/messages/0x226.md) | 100 | B0 bits 1..0 | `assist_level_a` | 1 = level 1, 2 = level 2, 3 = level 3 |  | hypothesis (medium) |
+| [0x226](docs/messages/0x226.md) | 100 | B1 bit 0 | `qs_down_enabled` | 0 = off, 1 = on |  | confirmed (medium) |
+| [0x226](docs/messages/0x226.md) | 100 | B3 | `tcs_mode` | 0 = probably TCS OFF (not confirmed), 1 = TCS 1, 2 = TCS 2, 3 = TCS M (manual) |  | confirmed (high) |
+| [0x226](docs/messages/0x226.md) | 100 | B5 bits 1..0 | `bc_mode` | 1 = BC1, 2 = BC2 |  | confirmed (high) |
+| [0x226](docs/messages/0x226.md) | 100 | B5 bits 3..2 | `assist_level_b` | 1 = level 1, 2 = level 2, 3 = level 3 |  | hypothesis (medium) |
+| [0x226](docs/messages/0x226.md) | 100 | B5 bit 5 | `qs_up_enabled` | 0 = off, 1 = on |  | confirmed (medium) |
+| [0x22A](docs/messages/0x22A.md) | 10 | B1 bit 3 | `brake_switch` | raw |  | confirmed (medium) |
+| [0x23A](docs/messages/0x23A.md) | 10 | B0 | `wake_phase` | 0 = normal, 4 = just woken |  | hypothesis (low) |
+| [0x23E](docs/messages/0x23E.md) | 1 | B0 | `coolant_temp` | raw × 0.625 − 30 | degC | confirmed (high) |
+| [0x23E](docs/messages/0x23E.md) | 1 | B1 | `ambient_temp` | raw × 0.625 − 30 | degC | confirmed (medium) |
+| [0x23E](docs/messages/0x23E.md) | 1 | B2:B3 | `load_counter` | raw | raw | hypothesis (low) |
+| [0x250](docs/messages/0x250.md) | 100 | B0:B1 | `accel_x` | raw × 0.001008 − 7.056 | g | confirmed (medium) |
+| [0x250](docs/messages/0x250.md) | 100 | B2:B3 | `accel_y` | raw × 0.001008 − 7.056 | g | confirmed (medium) |
+| [0x250](docs/messages/0x250.md) | 100 | B4:B5 | `accel_z` | raw × 0.001008 − 7.056 | g | confirmed (medium) |
+| [0x250](docs/messages/0x250.md) | 100 | B2:B3 | `lean_static` | raw × -0.057412 + 402.59 | deg | confirmed (high) |
+| [0x250](docs/messages/0x250.md) | 100 | B6 | `power_up_flags` | 32 = normal, 96 = first 0.4 s after power-up, 128 = first frame |  | hypothesis (medium) |
+| [0x254](docs/messages/0x254.md) | 100 | B0:B1 | `roll_rate` | raw × 0.01 − 300 | deg/s | confirmed (medium) |
+| [0x254](docs/messages/0x254.md) | 100 | B2:B3 | `pitch_rate` | raw × 0.01 − 300 | deg/s | confirmed (medium) |
+| [0x254](docs/messages/0x254.md) | 100 | B4:B5 | `yaw_rate` | raw × 0.01 − 300 | deg/s | confirmed (medium) |
+| [0x254](docs/messages/0x254.md) | | derived | `lean_angle` | `atan((yaw_raw - 30000) * v / 45873), v = wheel_speed_front in m/s` | deg | confirmed (medium) |
+| [0x258](docs/messages/0x258.md) | 100 | B6:B7 | `pitch_rate_level` | raw × 0.01 − 300 | deg/s | hypothesis (medium) |
+| [0x260](docs/messages/0x260.md) | 100 | B0:B1 | `brake_pressure_front` | raw | raw | confirmed (high) |
+| [0x268](docs/messages/0x268.md) | 100 | B1 bit 0 | `not_moved_since_start` | raw |  | hypothesis (medium) |
+| [0x268](docs/messages/0x268.md) | 100 | B2:B3 | `vehicle_speed` | raw × 0.056497 | km/h | confirmed (medium) |
+| [0x268](docs/messages/0x268.md) | 100 | B4 bit 0 | `abs_rear_active` | raw |  | confirmed (high) |
+| [0x268](docs/messages/0x268.md) | 100 | B4 bit 1 | `abs_front_active` | raw |  | confirmed (medium) |
+| [0x268](docs/messages/0x268.md) | 100 | B4 bit 2 | `brake_switch` | raw |  | confirmed (medium) |
+| [0x268](docs/messages/0x268.md) | 100 | B4 bits 4..3 | `bc_mode` | 1 = BC1, 2 = BC2 |  | confirmed (high) |
+| [0x401](docs/messages/0x401.md) | 10 | B0 bit 7 | `after_run` | raw |  | hypothesis (medium) |
+
+</details>
+<!-- END GENERATED: signals at a glance -->
 
 ## Status
 
@@ -71,8 +149,16 @@ are in [docs/methodology.md](docs/methodology.md).
 
 ## Quick start
 
-Hardware and wiring: [docs/connecting.md](docs/connecting.md). The bus runs at 500 kbit/s with
-11-bit IDs.
+Hardware and wiring: [docs/connecting.md](docs/connecting.md). In short:
+
+- **Connector:** the 6-pin Euro 5 diagnostic connector (ISO 19689) under the seat. It carries
+  CAN high, CAN low, ground and permanent +12 V; check the pins with a multimeter, the pin numbers
+  are from published pinouts, not traced by us ([details](docs/connecting.md)).
+- **Bus:** 500 kbit/s, classic CAN, 11-bit IDs. Termination not measured: do not add a 120 Ω
+  terminator unless you have measured that the bus needs one.
+- **Logger mode:** ours ran in normal mode: it acknowledges frames and sent only read-only
+  OBD-II / UDS requests, never broadcast IDs. Listen-only has not been tested on this bike.
+- **Transceiver:** any 3.3 V CAN transceiver for an ESP32 (we used an SN65HVD230).
 
 With a Linux SocketCAN adapter and [cantools](https://github.com/cantools/cantools):
 
