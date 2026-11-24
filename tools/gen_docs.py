@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Generate docs/signals.md, docs/messages/0xNNN.md and docs/open-questions.md
-from data/signals.yaml.
+"""Generate docs/signals.md, docs/messages/0xNNN.md, docs/open-questions.md and the
+"All signals at a glance" block of README.md from data/signals.yaml.
 
 Usage:
     python3 tools/gen_docs.py            # write the files
@@ -165,9 +165,53 @@ def open_questions_page(db: dict) -> str:
     return "\n".join(out).rstrip() + "\n"
 
 
+README_BEGIN = "<!-- BEGIN GENERATED: signals at a glance (tools/gen_docs.py) -->"
+README_END = "<!-- END GENERATED: signals at a glance -->"
+
+
+def _values_text(sig: dict, limit: int = 90) -> str:
+    """Compact enum map for the README: '0 = neutral, 1 = 1st, ...'."""
+    parts = [f"{k} = {v}" for k, v in sig["values"].items()]
+    text = ", ".join(parts)
+    return text if len(text) <= limit else text[:limit].rsplit(", ", 1)[0] + ", …"
+
+
+def readme_block(db: dict) -> str:
+    """Every confirmed or hypothesis signal in one table, so the README alone is enough."""
+    out = [README_BEGIN, "<details>",
+           "<summary>Bytes and formulas for every confirmed and hypothesis signal</summary>", "",
+           "| ID | Hz | Where | Signal | Value | Unit | Status |",
+           "|---|---|---|---|---|---|---|"]
+    for can_id in sorted(db["messages"]):
+        msg = db["messages"][can_id]
+        tag = d.can_id_text(can_id)
+        link = f"[{tag}](docs/messages/{tag}.md)"
+        for s in msg.get("signals", []):
+            if s["status"] not in ("confirmed", "hypothesis"):
+                continue
+            value = _values_text(s) if s.get("values") else _formula(s)
+            out.append(f"| {link} | {msg.get('rate_hz', '')} | {d.addr_text(s['addr'])} "
+                       f"| `{s['name']}` | {_cell(value)} | {s.get('unit', '')} | {_status(s)} |")
+        for der in msg.get("derived", []):
+            if der["status"] not in ("confirmed", "hypothesis"):
+                continue
+            out.append(f"| {link} | | derived | `{der['name']}` | `{_cell(der['formula'])}` "
+                       f"| {der.get('unit', '')} | {_status(der)} |")
+    out += ["", "</details>", README_END]
+    return "\n".join(out)
+
+
+def readme_text(db: dict) -> str:
+    text = (d.ROOT / "README.md").read_text(encoding="utf-8")
+    head, rest = text.split(README_BEGIN, 1)
+    _, tail = rest.split(README_END, 1)
+    return head + readme_block(db) + tail
+
+
 def build(db: dict) -> dict:
     files = {DOCS / "signals.md": signals_page(db),
-             DOCS / "open-questions.md": open_questions_page(db)}
+             DOCS / "open-questions.md": open_questions_page(db),
+             d.ROOT / "README.md": readme_text(db)}
     for can_id, msg in db["messages"].items():
         files[DOCS / "messages" / f"{d.can_id_text(can_id)}.md"] = message_page(can_id, msg)
     return files
@@ -190,7 +234,7 @@ def main() -> int:
     (DOCS / "messages").mkdir(parents=True, exist_ok=True)
     for path, text in files.items():
         path.write_text(text, encoding="utf-8")
-    print(f"wrote {len(files)} files under docs/")
+    print(f"wrote {len(files)} files (docs/ and the README block)")
     return 0
 
 
